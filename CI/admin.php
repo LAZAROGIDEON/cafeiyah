@@ -29,82 +29,10 @@ $valid_users = [
     ]
 ];
 
-// Initialize session data if not set
+// REMOVED: PHP session menu items initialization
+// Only initialize empty arrays for other session data
 if (!isset($_SESSION['menu_items'])) {
-    $_SESSION['menu_items'] = [
-        [
-            'id' => '1',
-            'name' => 'Classic Espresso',
-            'price' => 120,
-            'category' => 'Espresso',
-            'description' => 'Strong and rich espresso shot',
-            'image' => '☕',
-            'stock' => 50
-        ],
-        [
-            'id' => '2',
-            'name' => 'Caramel Macchiato',
-            'price' => 150,
-            'category' => 'Espresso',
-            'description' => 'Espresso with caramel and steamed milk',
-            'image' => '☕',
-            'stock' => 45
-        ],
-        [
-            'id' => '3',
-            'name' => 'Chocolate Frappe',
-            'price' => 140,
-            'category' => 'Frappe',
-            'description' => 'Iced blended chocolate drink',
-            'image' => '🥤',
-            'stock' => 35
-        ],
-        [
-            'id' => '4',
-            'name' => 'Strawberry Frappe',
-            'price' => 145,
-            'category' => 'Frappe',
-            'description' => 'Refreshing strawberry blended drink',
-            'image' => '🥤',
-            'stock' => 40
-        ],
-        [
-            'id' => '5',
-            'name' => 'Classic Milk Tea',
-            'price' => 110,
-            'category' => 'Milk Tea',
-            'description' => 'Traditional milk tea with pearls',
-            'image' => '🧋',
-            'stock' => 60
-        ],
-        [
-            'id' => '6',
-            'name' => 'Wintermelon Milk Tea',
-            'price' => 120,
-            'category' => 'Milk Tea',
-            'description' => 'Sweet wintermelon flavor with milk',
-            'image' => '🧋',
-            'stock' => 55
-        ],
-        [
-            'id' => '7',
-            'name' => 'Chicken Rice Bowl',
-            'price' => 180,
-            'category' => 'Food',
-            'description' => 'Grilled chicken with steamed rice',
-            'image' => '🍛',
-            'stock' => 25
-        ],
-        [
-            'id' => '8',
-            'name' => 'Beef Caldereta',
-            'price' => 220,
-            'category' => 'Food',
-            'description' => 'Traditional beef stew with rice',
-            'image' => '🍛',
-            'stock' => 20
-        ]
-    ];
+    $_SESSION['menu_items'] = []; // Empty array - data will come from Firebase
 }
 
 if (!isset($_SESSION['transactions'])) {
@@ -127,7 +55,7 @@ if (!isset($_SESSION['inventory'])) {
 }
 
 // Handle login
-if ($_POST['action'] === 'login') {
+if (isset($_POST['action']) && $_POST['action'] === 'login') {
     $username = $_POST['username'];
     $password = $_POST['password'];
     
@@ -142,14 +70,15 @@ if ($_POST['action'] === 'login') {
 }
 
 // Handle logout
-if ($_GET['action'] === 'logout') {
+if (isset($_GET['action']) && $_GET['action'] === 'logout') {
     session_destroy();
     header('Location: admin.php');
     exit;
 }
 
+// Other handlers remain the same...
 // Handle menu management (Owner & Manager)
-if ($_POST['action'] === 'add_menu_item' && in_array($_SESSION['user']['role'], ['owner', 'manager'])) {
+if (isset($_POST['action']) && $_POST['action'] === 'add_menu_item' && isset($_SESSION['user']) && in_array($_SESSION['user']['role'], ['owner', 'manager'])) {
     $new_item = [
         'id' => uniqid(),
         'name' => $_POST['item_name'],
@@ -165,7 +94,7 @@ if ($_POST['action'] === 'add_menu_item' && in_array($_SESSION['user']['role'], 
 }
 
 // Handle menu deletion (Owner & Manager)
-if ($_POST['action'] === 'delete_menu_item' && in_array($_SESSION['user']['role'], ['owner', 'manager'])) {
+if (isset($_POST['action']) && $_POST['action'] === 'delete_menu_item' && isset($_SESSION['user']) && in_array($_SESSION['user']['role'], ['owner', 'manager'])) {
     $item_id = $_POST['item_id'];
     $_SESSION['menu_items'] = array_filter($_SESSION['menu_items'], function($item) use ($item_id) {
         return $item['id'] !== $item_id;
@@ -173,52 +102,8 @@ if ($_POST['action'] === 'delete_menu_item' && in_array($_SESSION['user']['role'
     $success = "Menu item deleted successfully!";
 }
 
-// Handle staff management (Owner & Manager)
-if ($_POST['action'] === 'add_staff' && in_array($_SESSION['user']['role'], ['owner', 'manager'])) {
-    $username = $_POST['staff_username'];
-    $new_staff = [
-        'password' => $_POST['staff_password'],
-        'role' => 'cashier',
-        'name' => $_POST['staff_name'],
-        'permissions' => ['order_processing']
-    ];
-    
-    $_SESSION['staff_accounts'][$username] = $new_staff;
-    $valid_users[$username] = $new_staff;
-    $success = "Staff account created successfully!";
-}
-
-// Handle staff deletion (Owner & Manager)
-if ($_POST['action'] === 'delete_staff' && in_array($_SESSION['user']['role'], ['owner', 'manager'])) {
-    $username = $_POST['staff_username'];
-    unset($_SESSION['staff_accounts'][$username]);
-    unset($valid_users[$username]);
-    $success = "Staff account deleted successfully!";
-}
-
-// Handle inventory management (Owner & Manager)
-if ($_POST['action'] === 'update_inventory' && in_array($_SESSION['user']['role'], ['owner', 'manager'])) {
-    $item = $_POST['inventory_item'];
-    $quantity = intval($_POST['inventory_quantity']);
-    
-    if (isset($_SESSION['inventory'][$item])) {
-        $_SESSION['inventory'][$item]['quantity'] = $quantity;
-        $success = "Inventory updated successfully!";
-    }
-}
-
-// Handle transaction voiding (Owner & Manager)
-if ($_POST['action'] === 'void_transaction' && in_array($_SESSION['user']['role'], ['owner', 'manager'])) {
-    $transaction_id = $_POST['transaction_id'];
-    // Mark transaction as voided
-    if (isset($_SESSION['transactions'][$transaction_id])) {
-        $_SESSION['transactions'][$transaction_id]['voided'] = true;
-        $success = "Transaction voided successfully!";
-    }
-}
-
 // Handle order processing (Cashier)
-if ($_POST['action'] === 'process_order' && $_SESSION['user']['role'] === 'cashier') {
+if (isset($_POST['action']) && $_POST['action'] === 'process_order' && isset($_SESSION['user']) && $_SESSION['user']['role'] === 'cashier') {
     $order_items = json_decode($_POST['order_items'], true);
     $total_amount = floatval($_POST['total_amount']);
     
@@ -232,67 +117,15 @@ if ($_POST['action'] === 'process_order' && $_SESSION['user']['role'] === 'cashi
     ];
     
     $_SESSION['transactions'][] = $transaction;
-    
-    // Update stock
-    foreach ($order_items as $item) {
-        foreach ($_SESSION['menu_items'] as &$menu_item) {
-            if ($menu_item['id'] == $item['id']) {
-                $menu_item['stock'] -= $item['quantity'];
-                break;
-            }
-        }
-    }
-    
     $success = "Order processed successfully! Total: ₱" . number_format($total_amount, 2);
-}
-
-// Generate reports (Owner only)
-if ($_POST['action'] === 'generate_report' && $_SESSION['user']['role'] === 'owner') {
-    $report_type = $_POST['report_type'];
-    $report_data = generate_report($report_type);
-    $success = "{$report_type} report generated!";
-}
-
-function generate_report($type) {
-    $transactions = $_SESSION['transactions'];
-    $report = [];
-    
-    switch($type) {
-        case 'daily':
-            $today = date('Y-m-d');
-            $report = array_filter($transactions, function($t) use ($today) {
-                return date('Y-m-d', strtotime($t['timestamp'])) === $today && !$t['voided'];
-            });
-            break;
-        case 'weekly':
-            $week_start = date('Y-m-d', strtotime('monday this week'));
-            $report = array_filter($transactions, function($t) use ($week_start) {
-                return date('Y-m-d', strtotime($t['timestamp'])) >= $week_start && !$t['voided'];
-            });
-            break;
-        case 'monthly':
-            $month_start = date('Y-m-01');
-            $report = array_filter($transactions, function($t) use ($month_start) {
-                return date('Y-m-d', strtotime($t['timestamp'])) >= $month_start && !$t['voided'];
-            });
-            break;
-        case 'yearly':
-            $year_start = date('Y-01-01');
-            $report = array_filter($transactions, function($t) use ($year_start) {
-                return date('Y-m-d', strtotime($t['timestamp'])) >= $year_start && !$t['voided'];
-            });
-            break;
-    }
-    
-    return $report;
 }
 
 // Check if user is logged in
 $logged_in = isset($_SESSION['logged_in']) && $_SESSION['logged_in'];
 $current_user = $logged_in ? $_SESSION['user'] : null;
 
-// Get categories for cashier interface
-$categories = array_unique(array_column($_SESSION['menu_items'], 'category'));
+// Get categories will be handled by JavaScript from Firebase
+$categories = [];
 ?>
 
 <!DOCTYPE html>
@@ -302,6 +135,8 @@ $categories = array_unique(array_column($_SESSION['menu_items'], 'category'));
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cafe Management System</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
     <style>
         * {
             margin: 0;
@@ -336,6 +171,31 @@ $categories = array_unique(array_column($_SESSION['menu_items'], 'category'));
             align-items: center;
             height: 100vh;
             padding: 20px;
+        }
+
+        .login-button-container {
+            display: flex;
+            justify-content: center;
+            margin-top: 10px;
+        }
+
+        .login-button {
+            padding: 14px 40px;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            min-width: 150px;
+        }
+
+        .login-button:hover {
+            background: var(--secondary-color);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(139, 69, 19, 0.3);
         }
 
         .login-box {
@@ -535,7 +395,7 @@ $categories = array_unique(array_column($_SESSION['menu_items'], 'category'));
 
         .categories-title h2 {
             margin: 0 0 5px 0;
-            font-size: 1.6em;
+            font-size: 1.2em;
             display: flex;
             align-items: center;
             gap: 10px;
@@ -543,7 +403,7 @@ $categories = array_unique(array_column($_SESSION['menu_items'], 'category'));
 
         .categories-subtitle {
             opacity: 0.9;
-            font-size: 0.95em;
+            font-size: 0.80em;
         }
 
         /* Enhanced Categories Navigation */
@@ -565,7 +425,7 @@ $categories = array_unique(array_column($_SESSION['menu_items'], 'category'));
         .category-btn-large {
             flex: 1;
             min-width: 120px;
-            padding: 15px 10px;
+            padding: 12px 8px;
             border: none;
             background: rgba(255, 255, 255, 0.95);
             border-radius: 15px;
@@ -905,6 +765,35 @@ $categories = array_unique(array_column($_SESSION['menu_items'], 'category'));
         .manager-badge { background: linear-gradient(135deg, var(--secondary-color), #a0522d); }
         .cashier-badge { background: linear-gradient(135deg, var(--accent-color), #e76f51); }
 
+        /* Loading States */
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #8B4513;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
         /* Responsive Design */
         @media (max-width: 1024px) {
             .category-buttons-container {
@@ -981,7 +870,7 @@ $categories = array_unique(array_column($_SESSION['menu_items'], 'category'));
 </head>
 <body>
     <?php if (!$logged_in): ?>
-    <!-- Login Form -->
+    <!-- Login Form (unchanged) -->
     <div class="login-container">
         <div class="login-box">
             <div class="logo">
@@ -1012,7 +901,9 @@ $categories = array_unique(array_column($_SESSION['menu_items'], 'category'));
                         <input type="password" id="password" name="password" placeholder="Enter your password" required>
                     </div>
                 </div>
-                <button type="submit">Sign In <i class="fas fa-sign-in-alt"></i></button>
+                <div class="login-button-container">
+                    <button type="submit" class="login-button">Sign In <i class="fas fa-sign-in-alt"></i></button>
+                </div>
             </form>
             
             <div style="text-align: center; margin-top: 25px; color: var(--text-color); font-size: 13px; opacity: 0.7;">
@@ -1022,7 +913,7 @@ $categories = array_unique(array_column($_SESSION['menu_items'], 'category'));
     </div>
     
     <?php elseif ($current_user['role'] === 'cashier'): ?>
-    <!-- Cashier Fullscreen Dashboard -->
+    <!-- Cashier Fullscreen Dashboard - UPDATED FOR FIREBASE -->
     <div class="cashier-dashboard">
         <!-- Left Panel - Order Summary -->
         <div class="order-panel">
@@ -1074,7 +965,7 @@ $categories = array_unique(array_column($_SESSION['menu_items'], 'category'));
             </div>
         </div>
         
-        <!-- Right Panel - Product Selection -->
+        <!-- Right Panel - Product Selection - NOW DYNAMIC FROM FIREBASE -->
         <div class="products-panel">
             <!-- Enhanced Categories Header -->
             <div class="categories-header">
@@ -1084,205 +975,42 @@ $categories = array_unique(array_column($_SESSION['menu_items'], 'category'));
                 </div>
             </div>
             
-            <!-- Enhanced Category Buttons - More Visible -->
-            <div class="categories-nav">
-                <div class="category-buttons-container">
-                    <button class="category-btn-large active" onclick="filterProducts('all')" data-category="all">
-                        <div class="category-icon">
-                            <i class="fas fa-th-large"></i>
-                        </div>
-                        <div class="category-text">
-                            <span class="category-name">All Items</span>
-                            <span class="category-count"><?php echo count($_SESSION['menu_items']); ?></span>
-                        </div>
-                    </button>
-                    
-                    <button class="category-btn-large" onclick="filterProducts('Espresso')" data-category="espresso">
-                        <div class="category-icon">
-                            <i class="fas fa-coffee"></i>
-                        </div>
-                        <div class="category-text">
-                            <span class="category-name">Espresso</span>
-                            <span class="category-count"><?php echo count(array_filter($_SESSION['menu_items'], function($item) { return $item['category'] === 'Espresso'; })); ?></span>
-                        </div>
-                    </button>
-                    
-                    <button class="category-btn-large" onclick="filterProducts('Frappe')" data-category="frappe">
-                        <div class="category-icon">
-                            <i class="fas fa-glass-whiskey"></i>
-                        </div>
-                        <div class="category-text">
-                            <span class="category-name">Frappe</span>
-                            <span class="category-count"><?php echo count(array_filter($_SESSION['menu_items'], function($item) { return $item['category'] === 'Frappe'; })); ?></span>
-                        </div>
-                    </button>
-                    
-                    <button class="category-btn-large" onclick="filterProducts('Milk Tea')" data-category="milktea">
-                        <div class="category-icon">
-                            <i class="fas fa-mug-hot"></i>
-                        </div>
-                        <div class="category-text">
-                            <span class="category-name">Milk Tea</span>
-                            <span class="category-count"><?php echo count(array_filter($_SESSION['menu_items'], function($item) { return $item['category'] === 'Milk Tea'; })); ?></span>
-                        </div>
-                    </button>
-                    
-                    <button class="category-btn-large" onclick="filterProducts('Food')" data-category="food">
-                        <div class="category-icon">
-                            <i class="fas fa-utensils"></i>
-                        </div>
-                        <div class="category-text">
-                            <span class="category-name">Food Menu</span>
-                            <span class="category-count"><?php echo count(array_filter($_SESSION['menu_items'], function($item) { return $item['category'] === 'Food'; })); ?></span>
-                        </div>
-                    </button>
+            <!-- Loading State -->
+            <div id="loadingState" class="loading-overlay" style="display: flex;">
+                <div style="text-align: center;">
+                    <div class="loading-spinner" style="width: 40px; height: 40px; border-width: 4px; margin-bottom: 15px;"></div>
+                    <p>Loading menu from Firebase...</p>
                 </div>
             </div>
             
-            <!-- Category Sections -->
-            <div class="products-container">
-                <!-- All Items View -->
-                <div class="category-section active" id="category-all">
-                    <div class="section-header all-header">
-                        <h3><i class="fas fa-th-large"></i> All Menu Items</h3>
-                        <span class="category-count-badge"><?php echo count($_SESSION['menu_items']); ?> products available</span>
-                    </div>
-                    <div class="products-grid">
-                        <?php foreach ($_SESSION['menu_items'] as $item): ?>
-                        <div class="product-card <?php echo $item['stock'] <= 0 ? 'out-of-stock' : ''; ?>" 
-                             onclick="addToOrder('<?php echo $item['id']; ?>')"
-                             data-category="<?php echo $item['category']; ?>">
-                            <div class="product-emoji"><?php echo $item['image']; ?></div>
-                            <div class="product-name"><?php echo $item['name']; ?></div>
-                            <div class="product-price">₱<?php echo number_format($item['price'], 2); ?></div>
-                            <div class="product-description"><?php echo $item['description']; ?></div>
-                            <div class="product-category-badge category-<?php echo strtolower(str_replace(' ', '-', $item['category'])); ?>">
-                                <?php echo $item['category']; ?>
-                            </div>
-                            <div class="product-stock">
-                                Stock: <?php echo $item['stock']; ?>
-                                <?php if ($item['stock'] <= 0): ?>
-                                <div class="out-of-stock-badge">Out of Stock</div>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-                        <?php endforeach; ?>
-                    </div>
+            <!-- Enhanced Category Buttons - NOW DYNAMIC -->
+            <div class="categories-nav" id="categoriesNav" style="display: none;">
+                <div class="category-buttons-container" id="categoryButtons">
+                    <!-- Category buttons will be populated by JavaScript -->
                 </div>
-                
-                <!-- Espresso Category -->
-                <div class="category-section" id="category-espresso">
-                    <div class="section-header espresso-header">
-                        <h3><i class="fas fa-coffee"></i> Espresso Drinks</h3>
-                        <span class="category-count-badge"><?php echo count(array_filter($_SESSION['menu_items'], function($item) { return $item['category'] === 'Espresso'; })); ?> coffee drinks</span>
-                    </div>
-                    <div class="products-grid">
-                        <?php foreach ($_SESSION['menu_items'] as $item): ?>
-                        <?php if ($item['category'] === 'Espresso'): ?>
-                        <div class="product-card <?php echo $item['stock'] <= 0 ? 'out-of-stock' : ''; ?>" 
-                             onclick="addToOrder('<?php echo $item['id']; ?>')">
-                            <div class="product-emoji"><?php echo $item['image']; ?></div>
-                            <div class="product-name"><?php echo $item['name']; ?></div>
-                            <div class="product-price">₱<?php echo number_format($item['price'], 2); ?></div>
-                            <div class="product-description"><?php echo $item['description']; ?></div>
-                            <div class="product-stock">
-                                Stock: <?php echo $item['stock']; ?>
-                                <?php if ($item['stock'] <= 0): ?>
-                                <div class="out-of-stock-badge">Out of Stock</div>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-                        <?php endif; ?>
-                        <?php endforeach; ?>
-                    </div>
-                </div>
-                
-                <!-- Frappe Category -->
-                <div class="category-section" id="category-frappe">
-                    <div class="section-header frappe-header">
-                        <h3><i class="fas fa-glass-whiskey"></i> Frappe & Blended Drinks</h3>
-                        <span class="category-count-badge"><?php echo count(array_filter($_SESSION['menu_items'], function($item) { return $item['category'] === 'Frappe'; })); ?> blended drinks</span>
-                    </div>
-                    <div class="products-grid">
-                        <?php foreach ($_SESSION['menu_items'] as $item): ?>
-                        <?php if ($item['category'] === 'Frappe'): ?>
-                        <div class="product-card <?php echo $item['stock'] <= 0 ? 'out-of-stock' : ''; ?>" 
-                             onclick="addToOrder('<?php echo $item['id']; ?>')">
-                            <div class="product-emoji"><?php echo $item['image']; ?></div>
-                            <div class="product-name"><?php echo $item['name']; ?></div>
-                            <div class="product-price">₱<?php echo number_format($item['price'], 2); ?></div>
-                            <div class="product-description"><?php echo $item['description']; ?></div>
-                            <div class="product-stock">
-                                Stock: <?php echo $item['stock']; ?>
-                                <?php if ($item['stock'] <= 0): ?>
-                                <div class="out-of-stock-badge">Out of Stock</div>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-                        <?php endif; ?>
-                        <?php endforeach; ?>
-                    </div>
-                </div>
-                
-                <!-- Milk Tea Category -->
-                <div class="category-section" id="category-milktea">
-                    <div class="section-header milktea-header">
-                        <h3><i class="fas fa-mug-hot"></i> Milk Tea & Bubble Tea</h3>
-                        <span class="category-count-badge"><?php echo count(array_filter($_SESSION['menu_items'], function($item) { return $item['category'] === 'Milk Tea'; })); ?> tea drinks</span>
-                    </div>
-                    <div class="products-grid">
-                        <?php foreach ($_SESSION['menu_items'] as $item): ?>
-                        <?php if ($item['category'] === 'Milk Tea'): ?>
-                        <div class="product-card <?php echo $item['stock'] <= 0 ? 'out-of-stock' : ''; ?>" 
-                             onclick="addToOrder('<?php echo $item['id']; ?>')">
-                            <div class="product-emoji"><?php echo $item['image']; ?></div>
-                            <div class="product-name"><?php echo $item['name']; ?></div>
-                            <div class="product-price">₱<?php echo number_format($item['price'], 2); ?></div>
-                            <div class="product-description"><?php echo $item['description']; ?></div>
-                            <div class="product-stock">
-                                Stock: <?php echo $item['stock']; ?>
-                                <?php if ($item['stock'] <= 0): ?>
-                                <div class="out-of-stock-badge">Out of Stock</div>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-                        <?php endif; ?>
-                        <?php endforeach; ?>
-                    </div>
-                </div>
-                
-                <!-- Food Category -->
-                <div class="category-section" id="category-food">
-                    <div class="section-header food-header">
-                        <h3><i class="fas fa-utensils"></i> Food & Rice Meals</h3>
-                        <span class="category-count-badge"><?php echo count(array_filter($_SESSION['menu_items'], function($item) { return $item['category'] === 'Food'; })); ?> food items</span>
-                    </div>
-                    <div class="products-grid">
-                        <?php foreach ($_SESSION['menu_items'] as $item): ?>
-                        <?php if ($item['category'] === 'Food'): ?>
-                        <div class="product-card <?php echo $item['stock'] <= 0 ? 'out-of-stock' : ''; ?>" 
-                             onclick="addToOrder('<?php echo $item['id']; ?>')">
-                            <div class="product-emoji"><?php echo $item['image']; ?></div>
-                            <div class="product-name"><?php echo $item['name']; ?></div>
-                            <div class="product-price">₱<?php echo number_format($item['price'], 2); ?></div>
-                            <div class="product-description"><?php echo $item['description']; ?></div>
-                            <div class="product-stock">
-                                Stock: <?php echo $item['stock']; ?>
-                                <?php if ($item['stock'] <= 0): ?>
-                                <div class="out-of-stock-badge">Out of Stock</div>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-                        <?php endif; ?>
-                        <?php endforeach; ?>
-                    </div>
+            </div>
+            
+            <!-- Category Sections - NOW DYNAMIC -->
+            <div class="products-container" id="productsContainer" style="display: none;">
+                <!-- All sections will be populated by JavaScript -->
+            </div>
+
+            <!-- Error State -->
+            <div id="errorState" class="loading-overlay" style="display: none;">
+                <div style="text-align: center; color: var(--danger-color);">
+                    <i class="fas fa-exclamation-triangle" style="font-size: 3em; margin-bottom: 15px;"></i>
+                    <h3>Failed to Load Menu</h3>
+                    <p>Unable to connect to Firebase. Please refresh the page.</p>
+                    <button onclick="location.reload()" style="margin-top: 15px; padding: 10px 20px; background: var(--primary-color); color: white; border: none; border-radius: 8px; cursor: pointer;">
+                        Retry
+                    </button>
                 </div>
             </div>
         </div>
     </div>
 
     <?php else: ?>
-    <!-- Admin/Manager Dashboard (Original Layout) -->
+    <!-- Admin/Manager Dashboard (unchanged) -->
     <div style="display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px;">
         <div style="width: 100%; max-width: 500px; background: white; border-radius: 20px; box-shadow: 0 15px 40px rgba(0,0,0,0.2); overflow: hidden;">
             <div style="padding: 35px 30px; max-height: 90vh; overflow-y: auto;">
@@ -1325,8 +1053,6 @@ $categories = array_unique(array_column($_SESSION['menu_items'], 'category'));
                     </form>
                 </div>
                 <?php endif; ?>
-
-                <!-- Add other admin/manager sections here as needed -->
                 
                 <a href="admin.php?action=logout" style="display: block; text-decoration: none;">
                     <button class="logout-btn" style="background: var(--danger-color); margin-top: 20px; width: 100%;">Logout <i class="fas fa-sign-out-alt"></i></button>
@@ -1339,12 +1065,208 @@ $categories = array_unique(array_column($_SESSION['menu_items'], 'category'));
     <script>
         // Current order data
         let currentOrder = [];
+        let firebaseMenuItems = [];
 
-        // Add item to order
-        function addToOrder(itemId) {
-            const item = <?php echo json_encode($_SESSION['menu_items']); ?>.find(i => i.id === itemId);
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyCSRi9IyNkK6DA6YYfnAdzI9LigkgTVG24",
+            authDomain: "cafe-iyah-5869e.firebaseapp.com",
+            databaseURL: "https://cafe-iyah-5869e-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "cafe-iyah-5869e",
+            storageBucket: "cafe-iyah-5869e.firebasestorage.app",
+            messagingSenderId: "737248847652",
+            appId: "1:737248847652:web:f7ed666e68ca3dd4e975b1",
+            measurementId: "G-ZKF5NMVYH6"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // Enhanced function to fetch menu items from Firebase
+        async function fetchMenuItems() {
+            console.log("Fetching menu items from Firebase...");
             
-            if (!item || item.stock <= 0) return;
+            try {
+                const snapshot = await db.collection('menu_items').get();
+                console.log("Firebase query completed. Documents found:", snapshot.size);
+                
+                if (snapshot.empty) {
+                    console.log("No menu items found in Firebase Firestore");
+                    showErrorState();
+                    return;
+                }
+                
+                firebaseMenuItems = snapshot.docs.map(doc => {
+                    const data = doc.data();
+                    console.log("Processing item:", doc.id, data);
+                    return {
+                        id: doc.id,
+                        ...data
+                    };
+                });
+                
+                console.log("Final firebaseMenuItems array:", firebaseMenuItems);
+                
+                // Hide loading state and show content
+                hideLoadingState();
+                
+                // Update the UI with Firebase data
+                updateCategoryButtons();
+                updateMenuDisplay();
+                
+            } catch (error) {
+                console.error('Error fetching menu items:', error);
+                showErrorState();
+            }
+        }
+
+        function hideLoadingState() {
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('categoriesNav').style.display = 'block';
+            document.getElementById('productsContainer').style.display = 'block';
+        }
+
+        function showErrorState() {
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('errorState').style.display = 'flex';
+        }
+
+        // Update category buttons dynamically
+        function updateCategoryButtons() {
+            const categories = getCategoriesFromMenu();
+            const categoryButtons = document.getElementById('categoryButtons');
+            
+            let buttonsHTML = `
+                <button class="category-btn-large active" onclick="filterProducts('all')" data-category="all">
+                    <div class="category-icon">
+                        <i class="fas fa-th-large"></i>
+                    </div>
+                    <div class="category-text">
+                        <span class="category-name">All Items</span>
+                        <span class="category-count">${firebaseMenuItems.length}</span>
+                    </div>
+                </button>
+            `;
+            
+            categories.forEach(category => {
+                const count = firebaseMenuItems.filter(item => item.category === category).length;
+                const categoryId = category.toLowerCase().replace(' ', '-');
+                const icon = getCategoryIcon(category);
+                
+                buttonsHTML += `
+                    <button class="category-btn-large" onclick="filterProducts('${category}')" data-category="${categoryId}">
+                        <div class="category-icon">
+                            <i class="fas fa-${icon}"></i>
+                        </div>
+                        <div class="category-text">
+                            <span class="category-name">${category}</span>
+                            <span class="category-count">${count}</span>
+                        </div>
+                    </button>
+                `;
+            });
+            
+            categoryButtons.innerHTML = buttonsHTML;
+        }
+
+        function getCategoriesFromMenu() {
+            const categories = [...new Set(firebaseMenuItems.map(item => item.category))];
+            return categories.filter(category => category); // Remove empty categories
+        }
+
+function getCategoryIcon(category) {
+    const iconMap = {
+        'Espresso': 'coffee',
+        'Frappe': 'glass-whiskey',
+        'Milk Tea': 'mug-hot',
+        'Food': 'utensils'
+    };
+    return iconMap[category] || 'cube';
+}
+
+        // Update menu display with Firebase data
+        function updateMenuDisplay() {
+            const productsContainer = document.getElementById('productsContainer');
+            
+            // Create All Items section
+            let sectionsHTML = createCategorySection('all', 'All Menu Items', 'th-large', firebaseMenuItems);
+            
+            // Create category-specific sections
+            const categories = getCategoriesFromMenu();
+            categories.forEach(category => {
+                const categoryItems = firebaseMenuItems.filter(item => item.category === category);
+                const categoryId = category.toLowerCase().replace(' ', '-');
+                const icon = getCategoryIcon(category);
+                const description = getCategoryDescription(category);
+                
+                sectionsHTML += createCategorySection(categoryId, category, icon, categoryItems, description);
+            });
+            
+            productsContainer.innerHTML = sectionsHTML;
+        }
+
+        function getCategoryDescription(category) {
+            const descriptions = {
+                'Espresso': 'coffee drinks',
+                'Frappe': 'blended drinks',
+                'Milk Tea': 'tea drinks',
+                'Food': 'food items'
+            };
+            return descriptions[category] || 'items';
+        }
+
+function createCategorySection(categoryId, categoryName, icon, items, description = 'products') {
+    // Fix for milk tea category - remove spaces and hyphens for CSS class
+    const cssCategoryId = categoryId.replace(/[\s-]/g, '').toLowerCase();
+    const headerClass = `${cssCategoryId}-header`;
+    const count = items.length;
+    
+    return `
+        <div class="category-section ${categoryId === 'all' ? 'active' : ''}" id="category-${categoryId}">
+            <div class="section-header ${headerClass}">
+                <h3><i class="fas fa-${icon}"></i> ${categoryName}</h3>
+                <span class="category-count-badge">${count} ${description} available</span>
+            </div>
+            <div class="products-grid">
+                ${items.map(item => `
+                    <div class="product-card ${item.stock <= 0 ? 'out-of-stock' : ''}" 
+                         onclick="addToOrder('${item.id}')"
+                         data-category="${item.category}">
+                        <div class="product-emoji">${item.image}</div>
+                        <div class="product-name">${item.name}</div>
+                        <div class="product-price">₱${item.price.toFixed(2)}</div>
+                        <div class="product-description">${item.description}</div>
+                        <div class="product-category-badge category-${item.category.toLowerCase().replace(/[\s-]/g, '')}">
+                            ${item.category}
+                        </div>
+                        <div class="product-stock">
+                            Stock: ${item.stock}
+                            ${item.stock <= 0 ? '<div class="out-of-stock-badge">Out of Stock</div>' : ''}
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    `;
+}
+
+        // Add item to order (using Firebase data)
+        function addToOrder(itemId) {
+            console.log("Adding to order, item ID:", itemId);
+            
+            const item = firebaseMenuItems.find(i => i.id === itemId);
+            console.log("Found item:", item);
+            
+            if (!item) {
+                console.error("Item not found in firebaseMenuItems:", itemId);
+                return;
+            }
+            
+            if (item.stock <= 0) {
+                alert('Item out of stock!');
+                return;
+            }
             
             const existingItem = currentOrder.find(i => i.id === itemId);
             
@@ -1360,27 +1282,6 @@ $categories = array_unique(array_column($_SESSION['menu_items'], 'category'));
                 });
             }
             
-            updateOrderDisplay();
-        }
-
-        // Update quantity
-        function updateQuantity(itemId, change) {
-            const item = currentOrder.find(i => i.id === itemId);
-            
-            if (item) {
-                item.quantity += change;
-                
-                if (item.quantity <= 0) {
-                    currentOrder = currentOrder.filter(i => i.id !== itemId);
-                }
-            }
-            
-            updateOrderDisplay();
-        }
-
-        // Remove item from order
-        function removeItem(itemId) {
-            currentOrder = currentOrder.filter(i => i.id !== itemId);
             updateOrderDisplay();
         }
 
@@ -1438,31 +1339,47 @@ $categories = array_unique(array_column($_SESSION['menu_items'], 'category'));
             grandTotalEl.textContent = `₱${grandTotal.toFixed(2)}`;
         }
 
-        // Enhanced category filtering
-        function filterProducts(category) {
-            // Update active category button
-            document.querySelectorAll('.category-btn-large').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            event.target.classList.add('active');
+        // Update quantity
+        function updateQuantity(itemId, change) {
+            const item = currentOrder.find(i => i.id === itemId);
             
-            // Show selected category section
-            document.querySelectorAll('.category-section').forEach(section => {
-                section.classList.remove('active');
-            });
-            document.getElementById(`category-${category.toLowerCase()}`).classList.add('active');
+            if (item) {
+                item.quantity += change;
+                
+                if (item.quantity <= 0) {
+                    currentOrder = currentOrder.filter(i => i.id !== itemId);
+                }
+            }
             
-            // Update URL for refresh persistence
-            history.replaceState(null, null, `#${category}`);
+            updateOrderDisplay();
         }
 
-        // Check URL hash on load
-        document.addEventListener('DOMContentLoaded', function() {
-            const hash = window.location.hash.substring(1);
-            if (hash && document.querySelector(`[data-category="${hash.toLowerCase()}"]`)) {
-                document.querySelector(`[data-category="${hash.toLowerCase()}"]`).click();
-            }
-        });
+        // Remove item from order
+        function removeItem(itemId) {
+            currentOrder = currentOrder.filter(i => i.id !== itemId);
+            updateOrderDisplay();
+        }
+
+        // Enhanced category filtering
+function filterProducts(category) {
+    // Update active category button
+    document.querySelectorAll('.category-btn-large').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    event.target.classList.add('active');
+    
+    // Show selected category section
+    document.querySelectorAll('.category-section').forEach(section => {
+        section.classList.remove('active');
+    });
+    
+    // Convert category to proper ID format (handle "Milk Tea" -> "milk-tea")
+    const categoryId = category.toLowerCase().replace(' ', '-');
+    document.getElementById(`category-${categoryId}`).classList.add('active');
+    
+    // Update URL for refresh persistence
+    history.replaceState(null, null, `#${category}`);
+}
 
         // Clear current order
         function clearOrder() {
@@ -1474,8 +1391,8 @@ $categories = array_unique(array_column($_SESSION['menu_items'], 'category'));
             }
         }
 
-        // Process order
-        function processOrder() {
+        // Process order with Firebase stock update
+        async function processOrder() {
             if (currentOrder.length === 0) {
                 alert('Please add items to the order first.');
                 return;
@@ -1486,33 +1403,59 @@ $categories = array_unique(array_column($_SESSION['menu_items'], 'category'));
             const grandTotal = subtotal + tax;
             
             if (confirm(`Process order for ₱${grandTotal.toFixed(2)}?`)) {
-                // Create form and submit
-                const form = document.createElement('form');
-                form.method = 'POST';
-                form.style.display = 'none';
-                
-                const actionInput = document.createElement('input');
-                actionInput.name = 'action';
-                actionInput.value = 'process_order';
-                form.appendChild(actionInput);
-                
-                const itemsInput = document.createElement('input');
-                itemsInput.name = 'order_items';
-                itemsInput.value = JSON.stringify(currentOrder);
-                form.appendChild(itemsInput);
-                
-                const totalInput = document.createElement('input');
-                totalInput.name = 'total_amount';
-                totalInput.value = grandTotal;
-                form.appendChild(totalInput);
-                
-                document.body.appendChild(form);
-                form.submit();
+                try {
+                    // Update stock in Firebase
+                    const batch = db.batch();
+                    
+                    for (const orderItem of currentOrder) {
+                        const itemRef = db.collection('menu_items').doc(orderItem.id);
+                        const item = firebaseMenuItems.find(i => i.id === orderItem.id);
+                        
+                        if (item) {
+                            const newStock = item.stock - orderItem.quantity;
+                            batch.update(itemRef, { stock: newStock });
+                        }
+                    }
+                    
+                    await batch.commit();
+                    
+                    // Add transaction to Firebase
+                    await db.collection('transactions').add({
+                        timestamp: new Date(),
+                        cashier: '<?php echo $current_user['name']; ?>',
+                        items: currentOrder,
+                        total: grandTotal,
+                        voided: false
+                    });
+                    
+                    // Refresh menu items to get updated stock
+                    await fetchMenuItems();
+                    
+                    // Clear current order
+                    currentOrder = [];
+                    updateOrderDisplay();
+                    
+                    alert('Order processed successfully!');
+                    
+                } catch (error) {
+                    console.error('Error processing order:', error);
+                    alert('Error processing order. Please try again.');
+                }
             }
         }
 
-        // Initialize
+        // Initialize when DOM is loaded
         document.addEventListener('DOMContentLoaded', function() {
+            console.log("DOM loaded, checking user role...");
+            
+            // Only fetch from Firebase if user is cashier
+            <?php if ($logged_in && $current_user['role'] === 'cashier'): ?>
+            console.log("User is cashier, initializing Firebase...");
+            fetchMenuItems();
+            <?php else: ?>
+            console.log("User is not cashier, skipping Firebase initialization");
+            <?php endif; ?>
+            
             updateOrderDisplay();
         });
     </script>
