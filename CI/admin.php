@@ -53,7 +53,23 @@ if (!isset($_SESSION['inventory'])) {
     ];
 }
 
-// Handle login
+// Handle Firebase staff login FIRST
+if (isset($_POST['action']) && $_POST['action'] === 'firebase_staff_login') {
+    $_SESSION['user'] = [
+        'name' => $_POST['staff_name'],
+        'role' => $_POST['staff_role'],
+        'username' => $_POST['staff_username']
+    ];
+    $_SESSION['logged_in'] = true;
+    $_SESSION['login_time'] = date('Y-m-d H:i:s');
+    $_SESSION['is_demo_account'] = false;
+    $_SESSION['firebase_staff_id'] = $_POST['staff_id'];
+    
+    header('Location: admin.php');
+    exit;
+}
+
+// Handle demo login
 if (isset($_POST['action']) && $_POST['action'] === 'login') {
     $username = $_POST['username'];
     $password = $_POST['password'];
@@ -61,6 +77,8 @@ if (isset($_POST['action']) && $_POST['action'] === 'login') {
     if (isset($valid_users[$username]) && $valid_users[$username]['password'] === $password) {
         $_SESSION['user'] = $valid_users[$username];
         $_SESSION['logged_in'] = true;
+        $_SESSION['login_time'] = date('Y-m-d H:i:s');
+        $_SESSION['is_demo_account'] = true;
         header('Location: admin.php');
         exit;
     } else {
@@ -118,7 +136,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'process_order' && isset($_S
     $success = "Order processed successfully! Total: ₱" . number_format($total_amount, 2);
 }
 
-// Check if user is logged in
+// Check if user is logged in - DEFINE THIS VARIABLE AFTER ALL LOGIN HANDLING
 $logged_in = isset($_SESSION['logged_in']) && $_SESSION['logged_in'];
 $current_user = $logged_in ? $_SESSION['user'] : null;
 ?>
@@ -1137,12 +1155,6 @@ $current_user = $logged_in ? $_SESSION['user'] : null;
             }
         }
 
-        /* Emoji dropdown styling */
-        .emoji-option {
-            font-size: 1.2em;
-            padding: 5px;
-        }
-
         .content-section {
             display: none;
         }
@@ -1165,34 +1177,199 @@ $current_user = $logged_in ? $_SESSION['user'] : null;
             </div>
             <?php endif; ?>
             
-            <form method="POST">
-                <input type="hidden" name="action" value="login">
-                <div class="form-group">
-                    <label for="username">Username</label>
-                    <div class="input-with-icon">
-                        <i class="fas fa-user"></i>
-                        <input type="text" id="username" name="username" placeholder="Enter your username" required>
-                    </div>
+            <div class="form-group">
+                <label for="username">Username</label>
+                <div class="input-with-icon">
+                    <i class="fas fa-user"></i>
+                    <input type="text" id="username" placeholder="Enter your username" required>
                 </div>
-                <div class="form-group">
-                    <label for="password">Password</label>
-                    <div class="input-with-icon">
-                        <i class="fas fa-lock"></i>
-                        <input type="password" id="password" name="password" placeholder="Enter your password" required>
-                    </div>
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <div class="input-with-icon">
+                    <i class="fas fa-lock"></i>
+                    <input type="password" id="password" placeholder="Enter your password" required>
                 </div>
-                <div class="login-button-container">
-                    <button type="submit" class="login-button">Sign In <i class="fas fa-sign-in-alt"></i></button>
-                </div>
-            </form>
+            </div>
+            <div class="login-button-container">
+                <button onclick="attemptLogin()" class="login-button">Sign In <i class="fas fa-sign-in-alt"></i></button>
+            </div>
+            
+            <div id="loginError" class="error-message" style="display: none;">
+                <i class="fas fa-exclamation-circle"></i> <span id="errorText"></span>
+            </div>
             
             <div style="text-align: center; margin-top: 25px; color: var(--text-color); font-size: 13px; opacity: 0.7;">
                 <p>Demo Accounts: owner/owner123, manager/manager123, cashier1/cashier123, cashier2/cashier123</p>
+                <p style="margin-top: 10px;">Firebase Staff: Use staff credentials from Firestore</p>
             </div>
         </div>
     </div>
+
+    <script>
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyCSRi9IyNkK6DA6YYfnAdzI9LigkgTVG24",
+            authDomain: "cafe-iyah-5869e.firebaseapp.com",
+            databaseURL: "https://cafe-iyah-5869e-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "cafe-iyah-5869e",
+            storageBucket: "cafe-iyah-5869e.firebasestorage.app",
+            messagingSenderId: "737248847652",
+            appId: "1:737248847652:web:f7ed666e68ca3dd4e975b1",
+            measurementId: "G-ZKF5NMVYH6"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // Simple Firebase staff login function
+        async function loginWithFirebase(username, password) {
+            try {
+                console.log('Attempting Firebase login for:', username);
+                
+                // Query staff collection
+                const staffQuery = await db.collection('staff')
+                    .where('username', '==', username)
+                    .where('password', '==', password)
+                    .get();
+
+                if (staffQuery.empty) {
+                    throw new Error('Invalid staff credentials');
+                }
+
+                // Get staff data
+                const staffDoc = staffQuery.docs[0];
+                const staffData = staffDoc.data();
+                
+                console.log('Staff found:', staffData);
+
+                // Update staff status
+                await db.collection('staff').doc(staffDoc.id).update({
+                    isActive: true,
+                    lastLogin: new Date(),
+                    lastActivity: new Date()
+                });
+
+                return {
+                    id: staffDoc.id,
+                    name: staffData.name,
+                    role: staffData.role,
+                    username: staffData.username
+                };
+
+            } catch (error) {
+                console.error('Firebase login error:', error);
+                throw error;
+            }
+        }
+
+        // Simple login function
+        async function attemptLogin() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const errorDiv = document.getElementById('loginError');
+            const errorText = document.getElementById('errorText');
+            
+            // Clear previous errors
+            errorDiv.style.display = 'none';
+            
+            if (!username || !password) {
+                errorText.textContent = 'Please enter both username and password';
+                errorDiv.style.display = 'block';
+                return;
+            }
+            
+            // Demo accounts
+            const demoAccounts = {
+                'owner': {pass: 'owner123', role: 'owner', name: 'Cafe Owner'},
+                'manager': {pass: 'manager123', role: 'manager', name: 'Cafe Manager'},
+                'cashier1': {pass: 'cashier123', role: 'cashier', name: 'Cashier 1'},
+                'cashier2': {pass: 'cashier123', role: 'cashier', name: 'Cashier 2'}
+            };
+            
+            // Check demo accounts first
+            if (demoAccounts[username] && demoAccounts[username].pass === password) {
+                // Create form for demo login
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = 'admin.php';
+                
+                const actionInput = document.createElement('input');
+                actionInput.type = 'hidden';
+                actionInput.name = 'action';
+                actionInput.value = 'login';
+                form.appendChild(actionInput);
+                
+                const userInput = document.createElement('input');
+                userInput.type = 'hidden';
+                userInput.name = 'username';
+                userInput.value = username;
+                form.appendChild(userInput);
+                
+                const passInput = document.createElement('input');
+                passInput.type = 'hidden';
+                passInput.name = 'password';
+                passInput.value = password;
+                form.appendChild(passInput);
+                
+                document.body.appendChild(form);
+                form.submit();
+                return;
+            }
+            
+            // Try Firebase login
+            try {
+                const staffData = await loginWithFirebase(username, password);
+                
+                // Create form for Firebase login
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = 'admin.php';
+                
+                const actionInput = document.createElement('input');
+                actionInput.type = 'hidden';
+                actionInput.name = 'action';
+                actionInput.value = 'firebase_staff_login';
+                form.appendChild(actionInput);
+                
+                const nameInput = document.createElement('input');
+                nameInput.type = 'hidden';
+                nameInput.name = 'staff_name';
+                nameInput.value = staffData.name;
+                form.appendChild(nameInput);
+                
+                const roleInput = document.createElement('input');
+                roleInput.type = 'hidden';
+                roleInput.name = 'staff_role';
+                roleInput.value = staffData.role;
+                form.appendChild(roleInput);
+                
+                const userInput = document.createElement('input');
+                userInput.type = 'hidden';
+                userInput.name = 'staff_username';
+                userInput.value = staffData.username;
+                form.appendChild(userInput);
+                
+                const idInput = document.createElement('input');
+                idInput.type = 'hidden';
+                idInput.name = 'staff_id';
+                idInput.value = staffData.id;
+                form.appendChild(idInput);
+                
+                document.body.appendChild(form);
+                form.submit();
+                
+            } catch (error) {
+                errorText.textContent = 'Login failed: ' + error.message;
+                errorDiv.style.display = 'block';
+            }
+        }
+    </script>
     
-    <?php elseif ($current_user['role'] === 'cashier'): ?>
+    <?php else: ?>
+    
+    <?php if ($current_user['role'] === 'cashier'): ?>
     <!-- Cashier Fullscreen Dashboard -->
     <div class="cashier-dashboard">
         <!-- Left Panel - Order Summary -->
@@ -1200,19 +1377,22 @@ $current_user = $logged_in ? $_SESSION['user'] : null;
             <!-- Header with Logout Button -->
             <div class="order-header">
                 <div class="header-top">
-                    <button class="logout-btn-small" onclick="location.href='admin.php?action=logout'" title="Logout">
+                    <button class="logout-btn-small" onclick="handleLogout()" title="Logout">
                         <i class="fas fa-sign-out-alt"></i>
                     </button>
                     <div class="header-info">
                         <h2>Current Order</h2>
                         <p><?php echo $current_user['name']; ?> | <?php echo date('M j, Y g:i A'); ?></p>
+                        <div class="staff-status-section">
+                            <span class="online-indicator online"></span>
+                            <span class="status-badge status-active">Active</span>
+                        </div>
                     </div>
                 </div>
             </div>
             
             <div class="current-order">
                 <div class="order-items" id="orderItems">
-                    <!-- Order items will be populated by JavaScript -->
                     <div style="text-align: center; color: #666; padding: 40px 20px;">
                         <i class="fas fa-shopping-cart" style="font-size: 3em; margin-bottom: 15px; opacity: 0.3;"></i>
                         <p>No items in order</p>
@@ -1305,6 +1485,7 @@ $current_user = $logged_in ? $_SESSION['user'] : null;
                     <?php echo ucfirst($current_user['role']); ?>
                 </div>
                 <p>Access Level: <?php echo strtoupper($current_user['role']); ?></p>
+                <p class="last-login">Logged in: <?php echo isset($_SESSION['login_time']) ? $_SESSION['login_time'] : date('Y-m-d H:i:s'); ?></p>
             </div>
 
             <nav style="margin-top: 30px;">
@@ -1339,7 +1520,7 @@ $current_user = $logged_in ? $_SESSION['user'] : null;
                 </ul>
             </nav>
 
-            <a href="admin.php?action=logout" style="display: block; text-decoration: none; margin-top: 30px;">
+            <a href="admin.php?action=logout" onclick="handleLogout()" style="display: block; text-decoration: none; margin-top: 30px;">
                 <button class="logout-btn" style="background: var(--danger-color); width: 100%;">
                     <i class="fas fa-sign-out-alt"></i> Logout
                 </button>
@@ -1551,7 +1732,7 @@ $current_user = $logged_in ? $_SESSION['user'] : null;
     <?php endif; ?>
 
     <script>
-        // Firebase configuration
+        // Firebase configuration for logged-in users
         const firebaseConfig = {
             apiKey: "AIzaSyCSRi9IyNkK6DA6YYfnAdzI9LigkgTVG24",
             authDomain: "cafe-iyah-5869e.firebaseapp.com",
@@ -1563,7 +1744,7 @@ $current_user = $logged_in ? $_SESSION['user'] : null;
             measurementId: "G-ZKF5NMVYH6"
         };
 
-        // Initialize Firebase
+        // Initialize Firebase for logged-in users
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
@@ -1577,6 +1758,28 @@ $current_user = $logged_in ? $_SESSION['user'] : null;
         let monthlyChart = null;
         let currentMonth = new Date().getMonth();
         let currentYear = new Date().getFullYear();
+
+        // Handle logout
+        async function handleLogout() {
+            const isDemoAccount = <?php echo isset($_SESSION['is_demo_account']) && $_SESSION['is_demo_account'] ? 'true' : 'false'; ?>;
+            const firebaseStaffId = '<?php echo isset($_SESSION["firebase_staff_id"]) ? $_SESSION["firebase_staff_id"] : ""; ?>';
+            
+            // Update status for Firebase staff accounts
+            if (!isDemoAccount && firebaseStaffId) {
+                try {
+                    await db.collection('staff').doc(firebaseStaffId).update({
+                        isActive: false,
+                        lastLogout: new Date(),
+                        lastActivity: new Date()
+                    });
+                } catch (error) {
+                    console.error('Error updating staff status on logout:', error);
+                }
+            }
+            
+            // Redirect to logout
+            window.location.href = 'admin.php?action=logout';
+        }
 
         // ========== CASHIER FUNCTIONALITY ==========
 
@@ -2405,5 +2608,6 @@ $current_user = $logged_in ? $_SESSION['user'] : null;
             updateOrderDisplay();
         });
     </script>
+    <?php endif; ?>
 </body>
 </html>
