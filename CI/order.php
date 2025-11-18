@@ -14,7 +14,7 @@
     <!-- Navigation Bar -->
     <nav class="brown darken-2">
         <div class="nav-wrapper container">
-            <a href="index.php" class="brand-logo">Brew & Bean</a>
+            <a href="index.php" class="brand-logo">Brew & BBBean</a>
             <a href="#" data-target="mobile-demo" class="sidenav-trigger"><i class="material-icons">menu</i></a>
             <ul class="right hide-on-med-and-down">
                 <li><a href="index.php">Home</a></li>
