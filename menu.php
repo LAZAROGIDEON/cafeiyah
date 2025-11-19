@@ -303,6 +303,38 @@ $cafe_theme = [
             max-width: 1200px;
             margin: 0 auto;
             padding: 0 20px;
+            position: relative;
+        }
+
+        /* Home Button */
+        .home-button {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(139, 69, 19, 0.3);
+            z-index: 100;
+            text-decoration: none;
+        }
+
+        .home-button:hover {
+            background: var(--secondary-color);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(139, 69, 19, 0.4);
+        }
+
+        .home-button i {
+            font-size: 20px;
         }
 
         /* Header Styles */
@@ -314,6 +346,7 @@ $cafe_theme = [
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
             text-align: center;
             border: 3px solid var(--primary-color);
+            margin-top: 10px;
         }
 
         .logo {
@@ -380,6 +413,17 @@ $cafe_theme = [
         @media (max-width: 768px) {
             .main-content {
                 grid-template-columns: 1fr;
+            }
+            
+            .home-button {
+                top: 10px;
+                left: 10px;
+                width: 45px;
+                height: 45px;
+            }
+            
+            .home-button i {
+                font-size: 18px;
             }
         }
 
@@ -967,6 +1011,11 @@ $cafe_theme = [
 </head>
 <body>
     <div class="container">
+        <!-- Home Button -->
+        <a href="index.php" class="home-button" title="Back to Home">
+            <i class="fas fa-home"></i>
+        </a>
+
         <!-- Header -->
         <div class="header">
             <div class="logo">

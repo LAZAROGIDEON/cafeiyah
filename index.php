@@ -12,10 +12,9 @@
     <header class="header">
         <div class="logo">café iyah</div>
         <nav class="nav">
-            <a href="#">Stories</a>
-            <a href="#">Menu</a>
-            <a href="#">Location</a>
-            <a href="menu.php"><button class="order-btn">Order Now</button></a>
+            <a href="menu.php">Menu</a>
+            <a href="location.php">Location</a>
+            <a href="cart.php"><button class="order-btn">Order Now</button></a>
         </nav>
     </header>
 
